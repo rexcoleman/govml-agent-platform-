@@ -1,0 +1,100 @@
+# project.yaml — govML Agent-Native Governance Platform (FP-08)
+#
+# Evolve govML from template library to agent-consumable governance.
+# MCP server + YAML-driven policies + Claude Code native integration.
+# The compound play: every other project generates evidence for govML.
+
+project:
+  name: "govML Agent-Native Governance Platform"
+  profile: blog-track
+  python_version: "3.11"
+  conda_env: "govml-platform"
+
+authority:
+  tier1: "docs/PROJECT_BRIEF.md"
+  tier2: null
+  tier3: null
+
+publication:
+  title: "I Built the Governance Framework My AI Uses to Govern Itself"
+  pillar: "ML Systems Governance"
+  venue: "blog"
+  conference_cfp: "NeurIPS ML Ops Workshop / MLSys"
+  target_date: "2026-06-15"
+
+skill_clusters:
+  L: { current: "L4-adj", target: "L5", how: "Build tooling/infrastructure used by other AI builders" }
+  S: { current: "S4-adj", target: "S4", how: "Supply chain governance for AI agents" }
+  P: { current: "P3-adj", target: "P4", how: "MCP server = product with Claude Code users" }
+  D: { current: "D4", target: "D4+", how: "Agent governance architecture decisions" }
+  V: { current: "V1", target: "V2+", how: "govML is the brand — this is the flagship post" }
+
+infrastructure:
+  workload_type: "io_bound"
+  min_disk_gb: 2
+  min_ram_gb: 4
+  min_cores: 2
+  api_budget_usd: 0
+
+experiments:
+  seeds: [42]
+  parts:
+    - name: mcp_server
+      methods: [policy_reader, gate_checker, template_filler]
+      datasets: [govml_templates]
+      script: "scripts/test_mcp_server.py"
+      output_dir: "outputs/mcp"
+    - name: policy_engine
+      methods: [yaml_policies, gate_enforcement]
+      datasets: [project_configs]
+      script: "scripts/test_policies.py"
+      output_dir: "outputs/policies"
+
+datasets:
+  - name: govml_templates
+    source: "govML template library (self-referential)"
+    download_method: "local"
+    local_path: "../ml-governance-templates/templates/"
+  - name: project_configs
+    source: "project.yaml files from FP-01 through FP-10"
+    download_method: "local"
+    local_path: "data/project_configs/"
+
+phases:
+  - name: "Phase 0 — Environment & Design"
+    checks:
+      - command: "bash scripts/verify_env.sh"
+        description: "Environment verified"
+      - command: "git remote -v"
+        description: "Git remote configured"
+  - name: "Phase 1 — MCP Server"
+    checks:
+      - command: "python src/mcp_server.py --test"
+        description: "MCP server responds to tool calls"
+  - name: "Phase 2 — Policy Engine"
+    checks:
+      - command: "python src/policy_engine.py --check project.yaml"
+        description: "Policy engine validates a project config"
+  - name: "Phase 3 — Findings & Publication"
+    checks:
+      - command: "test -f FINDINGS.md"
+        description: "FINDINGS.md exists"
+  - name: "Phase 4 — Publication Artifacts"
+    checks:
+      - command: "test -f blog/draft.md"
+        description: "Blog draft exists"
+
+artifacts:
+  run_id_pattern: "{part}_{method}"
+  per_run_files:
+    - "summary.json"
+  hash_algorithm: "sha256"
+  manifest_file: "outputs/manifest.json"
+
+ai_governance:
+  tools:
+    - name: "Claude Code"
+      role: "Build the MCP server and policy engine. Meta: Claude Code building the tool that governs Claude Code."
+      prohibited: "Must not modify existing govML templates without CONTRACT_CHANGE. Must not auto-approve phase gates."
+  anti_ghostwriting: true
+  test_set_barrier: false

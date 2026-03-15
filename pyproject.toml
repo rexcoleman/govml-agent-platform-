@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "govml-platform"
+version = "0.1.0"
+description = "MCP server for govML agent-native governance"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "Rex Coleman"}]
+keywords = ["governance", "mcp", "ai-agents", "ml-ops"]
+
+[project.urls]
+Homepage = "https://github.com/rexcoleman/govml-agent-platform"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
