@@ -4,6 +4,8 @@ Reads project.yaml and checks phase gates, repo hygiene, and publication readine
 Designed to be called by both CLI and MCP server.
 """
 
+import re
+import json
 import yaml
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -157,6 +159,204 @@ def _count_placeholders(filepath: Path) -> int:
         return 999  # Missing file = not filled
     content = filepath.read_text()
     return content.count("{{") + content.count("PLACEHOLDER")
+
+
+def check_findings_integrity(project_path: str) -> PolicyResult:
+    """Audit FINDINGS.md claims against raw JSON outputs.
+
+    Checks claim/data reconciliation, claim strength tags, and seed count.
+    """
+    root = Path(project_path)
+    findings_path = root / "FINDINGS.md"
+    checks = []
+
+    if not findings_path.exists():
+        return PolicyResult(
+            policy="findings_integrity",
+            passed=False,
+            checks=[{"item": "FINDINGS.md exists", "pass": False,
+                     "detail": "FINDINGS.md not found in project root"}],
+            score="0/3",
+        )
+
+    findings_text = findings_path.read_text()
+
+    # --- Extract numbers from FINDINGS.md ---
+    number_patterns = re.findall(
+        r'\d+\.\d+%?|\d+%|\d+pp|\d{2,}', findings_text
+    )
+    claim_numbers = set(number_patterns)
+
+    # --- Load all JSON output values ---
+    outputs_dir = root / "outputs"
+    json_files = list(outputs_dir.rglob("*.json")) if outputs_dir.exists() else []
+    json_numbers: set[str] = set()
+    for jf in json_files:
+        try:
+            data = json.loads(jf.read_text())
+            _extract_numbers_from_json(data, json_numbers)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # --- Claim/data reconciliation ---
+    if claim_numbers:
+        matched = sum(1 for n in claim_numbers if n in json_numbers)
+        match_ratio = matched / len(claim_numbers)
+    else:
+        match_ratio = 0.0
+    claims_reconciled = match_ratio > 0.80
+    checks.append({
+        "item": "Claim/data reconciliation (>80%)",
+        "pass": claims_reconciled,
+        "detail": f"{match_ratio:.0%} of {len(claim_numbers)} numeric claims matched JSON outputs",
+    })
+
+    # --- Claim strength tags ---
+    tag_pattern = r'\[(DEMONSTRATED|SUGGESTED|PROJECTED|HYPOTHESIZED)\]'
+    tags_found = re.findall(tag_pattern, findings_text)
+    # Count paragraphs (non-empty lines separated by blanks) as proxy for claims
+    paragraphs = [p.strip() for p in findings_text.split('\n\n') if p.strip()]
+    claim_sections = max(len(paragraphs), 1)
+    tag_ratio = len(tags_found) / claim_sections if claim_sections else 0.0
+    tags_sufficient = tag_ratio > 0.80
+    checks.append({
+        "item": "Claim strength tags (>80% sections tagged)",
+        "pass": tags_sufficient,
+        "detail": f"{len(tags_found)} tags across {claim_sections} sections ({tag_ratio:.0%})",
+    })
+
+    # --- Seed count ---
+    seed_files = list(outputs_dir.rglob("*seed*.json")) if outputs_dir.exists() else []
+    seed_count = len(seed_files)
+    seeds_sufficient = seed_count >= 3
+    checks.append({
+        "item": "Seed count (≥3)",
+        "pass": seeds_sufficient,
+        "detail": f"{seed_count} seed files found",
+    })
+
+    all_pass = all(c["pass"] for c in checks)
+    passed_count = sum(1 for c in checks if c["pass"])
+    return PolicyResult(
+        policy="findings_integrity",
+        passed=all_pass,
+        checks=checks,
+        score=f"{passed_count}/{len(checks)}",
+    )
+
+
+def _extract_numbers_from_json(data, numbers: set[str]):
+    """Recursively extract string representations of numbers from JSON data."""
+    if isinstance(data, dict):
+        for v in data.values():
+            _extract_numbers_from_json(v, numbers)
+    elif isinstance(data, list):
+        for v in data:
+            _extract_numbers_from_json(v, numbers)
+    elif isinstance(data, (int, float)):
+        # Store multiple representations for matching
+        numbers.add(str(data))
+        if isinstance(data, float):
+            numbers.add(f"{data:.2f}")
+            numbers.add(f"{data:.1f}")
+            numbers.add(f"{data:.0f}")
+            # Percentage representations
+            numbers.add(f"{data * 100:.1f}")
+            numbers.add(f"{data * 100:.0f}")
+
+
+def check_statistical_rigor(project_path: str) -> PolicyResult:
+    """Check statistical methodology: seeds, CIs, baselines, hyperparameters, data type."""
+    root = Path(project_path)
+    checks = []
+
+    # --- Seed count from output filenames ---
+    outputs_dir = root / "outputs"
+    if not outputs_dir.exists():
+        return PolicyResult(
+            policy="statistical_rigor",
+            passed=False,
+            checks=[{"item": "outputs/ directory exists", "pass": False,
+                     "detail": "No outputs/ directory found in project root"}],
+            score="0/3",
+        )
+
+    seed_files = list(outputs_dir.rglob("*seed*.json"))
+    # Extract unique seed identifiers from filenames
+    unique_seeds: set[str] = set()
+    for sf in seed_files:
+        match = re.search(r'seed[_-]?(\d+)', sf.name, re.IGNORECASE)
+        if match:
+            unique_seeds.add(match.group(1))
+    seed_count = len(unique_seeds)
+    seeds_ok = seed_count >= 3
+    checks.append({
+        "item": "Unique seeds (≥3)",
+        "pass": seeds_ok,
+        "detail": f"{seed_count} unique seeds found",
+    })
+
+    # --- Read FINDINGS.md for statistical checks ---
+    findings_path = root / "FINDINGS.md"
+    findings_text = findings_path.read_text() if findings_path.exists() else ""
+
+    # Confidence intervals
+    has_ci = bool(re.search(r'\bCI\b|confidence interval|±', findings_text))
+    checks.append({
+        "item": "Confidence intervals reported",
+        "pass": has_ci,
+        "detail": "Found CI/confidence interval/± mention" if has_ci else "No confidence intervals found in FINDINGS.md",
+    })
+
+    # Baselines
+    has_baselines = bool(re.search(r'\bbaseline\b', findings_text, re.IGNORECASE))
+    checks.append({
+        "item": "Baselines mentioned",
+        "pass": has_baselines,
+        "detail": "Baseline comparison found" if has_baselines else "No baseline mention in FINDINGS.md",
+    })
+
+    # --- Hyperparameter search (any project file) ---
+    hp_pattern = re.compile(r'hyperparameter|grid.search|random.search', re.IGNORECASE)
+    has_hp = bool(hp_pattern.search(findings_text))
+    if not has_hp:
+        for py_file in root.rglob("*.py"):
+            try:
+                if hp_pattern.search(py_file.read_text()):
+                    has_hp = True
+                    break
+            except OSError:
+                continue
+    checks.append({
+        "item": "Hyperparameter search documented",
+        "pass": has_hp,
+        "detail": "Hyperparameter search found" if has_hp else "No hyperparameter search documentation found",
+    })
+
+    # --- Data type from project.yaml ---
+    project_yaml = root / "project.yaml"
+    data_type = None
+    if project_yaml.exists():
+        try:
+            config = yaml.safe_load(project_yaml.read_text())
+            data_type = config.get("data_type")
+        except (yaml.YAMLError, OSError):
+            pass
+    checks.append({
+        "item": "data_type declared in project.yaml",
+        "pass": data_type is not None,
+        "detail": f"data_type={data_type}" if data_type else "No data_type field in project.yaml",
+    })
+
+    # Pass criteria: seeds >= 3 AND has_ci AND has_baselines
+    all_pass = seeds_ok and has_ci and has_baselines
+    passed_count = sum(1 for c in checks if c["pass"])
+    return PolicyResult(
+        policy="statistical_rigor",
+        passed=all_pass,
+        checks=checks,
+        score=f"{passed_count}/{len(checks)}",
+    )
 
 
 def run_all_checks(project_yaml: str, repo_path: str = ".") -> dict[str, PolicyResult]:

@@ -29,6 +29,24 @@ def test_decision_log():
     assert result.checks[0]["pass"] is True  # File exists
 
 
+def test_check_findings_integrity_missing_findings(tmp_path):
+    """No FINDINGS.md → fails with descriptive message."""
+    from src.policy_engine import check_findings_integrity
+    result = check_findings_integrity(str(tmp_path))
+    assert result.passed is False
+    assert result.checks[0]["pass"] is False
+    assert "FINDINGS.md" in result.checks[0]["detail"]
+
+
+def test_check_statistical_rigor_missing_outputs(tmp_path):
+    """No outputs/ directory → fails with descriptive message."""
+    from src.policy_engine import check_statistical_rigor
+    result = check_statistical_rigor(str(tmp_path))
+    assert result.passed is False
+    assert result.checks[0]["pass"] is False
+    assert "outputs/" in result.checks[0]["detail"]
+
+
 def test_mcp_tool_call():
     from src.mcp_server import handle_tool_call
     result = handle_tool_call("govml_scan_repo_hygiene", {"repo_path": "."})

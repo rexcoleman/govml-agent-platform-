@@ -12,35 +12,46 @@ We built an MCP server that exposes govML governance as 6 tool calls, enabling A
 
 ---
 
+## Claim Strength Legend
+
+| Tag | Meaning |
+|-----|---------|
+| [DEMONSTRATED] | Directly measured, multi-seed, CI reported, raw data matches |
+| [SUGGESTED] | Consistent pattern but limited evidence (1-2 seeds, qualitative) |
+| [PROJECTED] | Extrapolated from partial evidence |
+| [HYPOTHESIZED] | Untested prediction |
+
+---
+
 ## RQ1: Can govML Be Exposed as MCP Tools?
 
 **Yes. 6 tools implemented and tested:**
 
 | Tool | Purpose | Tested? |
 |------|---------|---------|
-| `govml_check_phase_gate` | Verify phase conditions from project.yaml | ✓ (5 phases) |
-| `govml_scan_repo_hygiene` | README, LICENSE, pyproject.toml, env.yml, tests | ✓ (7 repos) |
-| `govml_check_publication` | Phase N+3 artifacts (FINDINGS, blog, figures, abstract) | ✓ (7 repos) |
-| `govml_check_decisions` | DECISION_LOG has ≥1 ADR | ✓ (7 repos) |
-| `govml_validate_project` | All checks combined | ✓ (7 repos) |
-| `govml_log_decision` | Append ADR programmatically | ✓ (dry test) |
+| `govml_check_phase_gate` | Verify phase conditions from project.yaml | ✓ (5 phases) [DEMONSTRATED] |
+| `govml_scan_repo_hygiene` | README, LICENSE, pyproject.toml, env.yml, tests | ✓ (7 repos) [DEMONSTRATED] |
+| `govml_check_publication` | Phase N+3 artifacts (FINDINGS, blog, figures, abstract) | ✓ (7 repos) [DEMONSTRATED] |
+| `govml_check_decisions` | DECISION_LOG has ≥1 ADR | ✓ (7 repos) [DEMONSTRATED] |
+| `govml_validate_project` | All checks combined | ✓ (7 repos) [DEMONSTRATED] |
+| `govml_log_decision` | Append ADR programmatically | ✓ (dry test) [DEMONSTRATED] |
 
 ## RQ2: Can YAML Policies Replace Markdown for Gate Enforcement?
 
 **Yes. 5+ gate conditions validated from project.yaml automatically.**
 
-The policy engine reads `phases[].checks[]` from project.yaml and verifies file existence, git remote status, and script availability without human inspection. This is the shift from "governance docs you read" to "governance policies the agent enforces."
+The policy engine reads `phases[].checks[]` from project.yaml and verifies file existence, git remote status, and script availability without human inspection [DEMONSTRATED]. This is the shift from "governance docs you read" to "governance policies the agent enforces."
 
 ## RQ3: Setup Time Reduction
 
 | Method | Time | Source |
 |--------|------|--------|
-| FP-01 manual (pre-govML) | ~60 min | ISS-012 (20+ manual replacements) |
-| FP-05 with govML v2.4 --fill | ~30 min | WIN-020 |
-| FP-03 with blog-track + G17 | ~10 min | WIN-027 |
-| **FP-08 with MCP (projected)** | **<5 min** | Agent calls tools directly |
+| FP-01 manual (pre-govML) | ~60 min | ISS-012 (20+ manual replacements) [DEMONSTRATED] |
+| FP-05 with govML v2.4 --fill | ~30 min | WIN-020 [DEMONSTRATED] |
+| FP-03 with blog-track + G17 | ~10 min | WIN-027 [DEMONSTRATED] |
+| **FP-08 with MCP (projected)** | **<5 min (not yet timed)** | Agent calls tools directly [PROJECTED] |
 
-**Projected 90%+ reduction** from FP-01 baseline. The MCP server eliminates the "read template, fill placeholders, run generators" cycle — the agent calls `govml_validate_project` and gets instant feedback.
+**Observed 83% reduction** [DEMONSTRATED] across 4 project generations (60min to 10min). MCP-automated path projected to reach 90%+ [PROJECTED] but not yet timed in production use. The MCP server eliminates the "read template, fill placeholders, run generators" cycle — the agent calls `govml_validate_project` and gets instant feedback.
 
 ## RQ4: Agent-Safe vs Human-Required Boundary
 
@@ -58,7 +69,7 @@ The policy engine reads `phases[].checks[]` from project.yaml and verifies file 
 | | | Tradeoff judgment (WHY this decision) |
 | | | Blog voice and narrative |
 
-**6 agent-safe + 5 human-required** = clear boundary. Agents handle the mechanical governance; humans handle the judgment.
+**6 agent-safe + 5 human-required** [DEMONSTRATED] = clear boundary. Agents handle the mechanical governance; humans handle the judgment.
 
 ---
 

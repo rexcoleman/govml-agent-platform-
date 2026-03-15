@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.policy_engine import (
     check_repo_hygiene, check_phase_gate, check_publication_readiness,
     check_decision_log, run_all_checks, load_project_config,
+    check_findings_integrity, check_statistical_rigor,
 )
 
 
@@ -59,6 +60,16 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
             "overall_pass": all(r.passed for r in results.values()),
             "checks": {name: _format_result(r) for name, r in results.items()},
         }
+
+    elif tool_name == "govml_check_findings_integrity":
+        project_path = arguments.get("project_path", ".")
+        result = check_findings_integrity(project_path)
+        return _format_result(result)
+
+    elif tool_name == "govml_check_statistical_rigor":
+        project_path = arguments.get("project_path", ".")
+        result = check_statistical_rigor(project_path)
+        return _format_result(result)
 
     elif tool_name == "govml_log_decision":
         repo_path = arguments.get("repo_path", ".")
@@ -175,6 +186,28 @@ TOOL_DEFINITIONS = [
                 "project_yaml": {"type": "string", "description": "Path to project.yaml"},
                 "repo_path": {"type": "string", "description": "Path to project repo root"},
             },
+        },
+    },
+    {
+        "name": "govml_check_findings_integrity",
+        "description": "Audit FINDINGS.md claims against raw JSON outputs. Checks claim/data reconciliation, claim strength tags, and seed count.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
+        },
+    },
+    {
+        "name": "govml_check_statistical_rigor",
+        "description": "Check statistical methodology: seed count, confidence intervals, baselines, hyperparameter documentation, data type.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
         },
     },
     {
