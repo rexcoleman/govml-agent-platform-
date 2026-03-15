@@ -24,6 +24,8 @@ from src.policy_engine import (
     check_repo_hygiene, check_phase_gate, check_publication_readiness,
     check_decision_log, run_all_checks, load_project_config,
     check_findings_integrity, check_statistical_rigor,
+    check_learning_curves, check_hypothesis_registry,
+    check_provenance, check_test_coverage,
 )
 
 
@@ -69,6 +71,27 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
     elif tool_name == "govml_check_statistical_rigor":
         project_path = arguments.get("project_path", ".")
         result = check_statistical_rigor(project_path)
+        return _format_result(result)
+
+    elif tool_name == "govml_check_learning_curves":
+        project_path = arguments.get("project_path", ".")
+        result = check_learning_curves(project_path)
+        return _format_result(result)
+
+    elif tool_name == "govml_check_hypothesis_registry":
+        project_path = arguments.get("project_path", ".")
+        result = check_hypothesis_registry(project_path)
+        return _format_result(result)
+
+    elif tool_name == "govml_check_provenance":
+        project_path = arguments.get("project_path", ".")
+        result = check_provenance(project_path)
+        return _format_result(result)
+
+    elif tool_name == "govml_check_test_coverage":
+        project_path = arguments.get("project_path", ".")
+        minimum = arguments.get("minimum")
+        result = check_test_coverage(project_path, minimum=minimum)
         return _format_result(result)
 
     elif tool_name == "govml_log_decision":
@@ -206,6 +229,51 @@ TOOL_DEFINITIONS = [
             "type": "object",
             "properties": {
                 "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
+        },
+    },
+    {
+        "name": "govml_check_learning_curves",
+        "description": "Check that learning curve figures exist and were generated from source data (outputs/diagnostics/).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
+        },
+    },
+    {
+        "name": "govml_check_hypothesis_registry",
+        "description": "Check that hypotheses are pre-registered and all resolved (no PENDING). Requires ≥2 hypotheses.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
+        },
+    },
+    {
+        "name": "govml_check_provenance",
+        "description": "Check reproducibility artifacts: config_resolved.yaml, versions.txt, output_manifest.json, git_info.txt.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+            },
+            "required": ["project_path"],
+        },
+    },
+    {
+        "name": "govml_check_test_coverage",
+        "description": "Count test functions and check minimum threshold (25 for blog-track, 50 for publication-track).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_path": {"type": "string", "description": "Path to project root"},
+                "minimum": {"type": "integer", "description": "Override minimum test count (default: auto-detect from project.yaml)"},
             },
             "required": ["project_path"],
         },

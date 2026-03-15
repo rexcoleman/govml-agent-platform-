@@ -359,12 +359,202 @@ def check_statistical_rigor(project_path: str) -> PolicyResult:
     )
 
 
+def check_learning_curves(project_path: str) -> PolicyResult:
+    """Check that learning curve figures exist and were generated from data."""
+    root = Path(project_path)
+    checks = []
+
+    # Check for figures/learning_curves.png OR figures/lc_*.png
+    figures_dir = root / "figures"
+    has_figure = False
+    if figures_dir.exists():
+        has_figure = (
+            (figures_dir / "learning_curves.png").exists()
+            or any(figures_dir.glob("lc_*.png"))
+        )
+    checks.append({
+        "item": "Learning curve figure exists",
+        "pass": has_figure,
+        "detail": "Found in figures/" if has_figure else "No learning_curves.png or lc_*.png in figures/",
+    })
+
+    # Check for outputs/diagnostics/learning_curves_*.json source data
+    diag_dir = root / "outputs" / "diagnostics"
+    has_source = False
+    if diag_dir.exists():
+        has_source = any(diag_dir.glob("learning_curves_*.json"))
+    checks.append({
+        "item": "Learning curve source data exists",
+        "pass": has_source,
+        "detail": "Found in outputs/diagnostics/" if has_source else "No learning_curves_*.json in outputs/diagnostics/",
+    })
+
+    all_pass = all(c["pass"] for c in checks)
+    return PolicyResult(
+        policy="learning_curves",
+        passed=all_pass,
+        checks=checks,
+        score=f"{sum(1 for c in checks if c['pass'])}/{len(checks)}",
+    )
+
+
+def check_hypothesis_registry(project_path: str) -> PolicyResult:
+    """Check that hypotheses are pre-registered and resolved."""
+    root = Path(project_path)
+    checks = []
+
+    # Look for HYPOTHESIS_REGISTRY.md or docs/HYPOTHESIS_REGISTRY.md
+    registry_path = None
+    for candidate in [root / "HYPOTHESIS_REGISTRY.md", root / "docs/HYPOTHESIS_REGISTRY.md"]:
+        if candidate.exists():
+            registry_path = candidate
+            break
+
+    if registry_path is None:
+        return PolicyResult(
+            policy="hypothesis_registry",
+            passed=False,
+            checks=[{"item": "HYPOTHESIS_REGISTRY.md exists", "pass": False,
+                     "detail": "Not found in project root or docs/"}],
+            score="0/2",
+        )
+
+    content = registry_path.read_text()
+    checks.append({"item": "HYPOTHESIS_REGISTRY.md exists", "pass": True})
+
+    # Parse for hypothesis table rows (lines starting with | H or | HYP or containing hypothesis IDs)
+    hyp_rows = re.findall(r'^\|.*(?:H\d+|HYP-?\d+).*\|', content, re.MULTILINE)
+    hyp_count = len(hyp_rows)
+    checks.append({
+        "item": f"≥2 hypotheses registered ({hyp_count} found)",
+        "pass": hyp_count >= 2,
+        "detail": f"{hyp_count} hypothesis rows found",
+    })
+
+    # Check all resolved (no PENDING)
+    pending_rows = [r for r in hyp_rows if "PENDING" in r.upper()]
+    all_resolved = len(pending_rows) == 0 and hyp_count >= 2
+    checks.append({
+        "item": "All hypotheses resolved (no PENDING)",
+        "pass": all_resolved,
+        "detail": f"{len(pending_rows)} PENDING" if pending_rows else "All resolved",
+    })
+
+    all_pass = all(c["pass"] for c in checks)
+    return PolicyResult(
+        policy="hypothesis_registry",
+        passed=all_pass,
+        checks=checks,
+        score=f"{sum(1 for c in checks if c['pass'])}/{len(checks)}",
+    )
+
+
+def check_provenance(project_path: str) -> PolicyResult:
+    """Check reproducibility artifacts exist."""
+    root = Path(project_path)
+    required_files = [
+        "provenance/config_resolved.yaml",
+        "provenance/versions.txt",
+        "provenance/output_manifest.json",
+        "provenance/git_info.txt",
+    ]
+    checks = []
+
+    for relpath in required_files:
+        # Accept in provenance/ subdirectory or project root
+        in_subdir = (root / relpath).exists()
+        filename = Path(relpath).name
+        in_root = (root / filename).exists()
+        found = in_subdir or in_root
+        checks.append({
+            "item": relpath,
+            "pass": found,
+            "detail": f"Found at {'provenance/' if in_subdir else 'root' if in_root else 'MISSING'}",
+        })
+
+    all_pass = all(c["pass"] for c in checks)
+    return PolicyResult(
+        policy="provenance",
+        passed=all_pass,
+        checks=checks,
+        score=f"{sum(1 for c in checks if c['pass'])}/{len(checks)}",
+    )
+
+
+def check_test_coverage(project_path: str, minimum: int | None = None) -> PolicyResult:
+    """Count tests and check minimum tiers."""
+    root = Path(project_path)
+    checks = []
+
+    # Find tests/ directory
+    test_dir = root / "tests"
+    if not test_dir.exists():
+        return PolicyResult(
+            policy="test_coverage",
+            passed=False,
+            checks=[{"item": "tests/ directory exists", "pass": False,
+                     "detail": "No tests/ directory found"}],
+            score="0/2",
+        )
+
+    checks.append({"item": "tests/ directory exists", "pass": True})
+
+    # Count files matching test_*.py
+    test_files = list(test_dir.glob("test_*.py"))
+    file_count = len(test_files)
+
+    # Count functions matching def test_ in those files
+    func_count = 0
+    for tf in test_files:
+        try:
+            content = tf.read_text()
+            func_count += len(re.findall(r'^\s*def test_', content, re.MULTILINE))
+        except OSError:
+            continue
+
+    # Determine threshold from project.yaml profile or parameter
+    if minimum is not None:
+        threshold = minimum
+    else:
+        threshold = 25  # default: blog-track
+        project_yaml = root / "project.yaml"
+        if project_yaml.exists():
+            try:
+                config = yaml.safe_load(project_yaml.read_text())
+                profile = config.get("profile", "")
+                if "publication" in str(profile).lower():
+                    threshold = 50
+            except (yaml.YAMLError, OSError):
+                pass
+
+    meets_threshold = func_count >= threshold
+    checks.append({
+        "item": f"≥{threshold} test functions ({func_count} found in {file_count} files)",
+        "pass": meets_threshold,
+        "detail": f"{func_count} test functions in {file_count} files (threshold: {threshold})",
+    })
+
+    all_pass = all(c["pass"] for c in checks)
+    return PolicyResult(
+        policy="test_coverage",
+        passed=all_pass,
+        checks=checks,
+        score=f"{sum(1 for c in checks if c['pass'])}/{len(checks)}",
+    )
+
+
 def run_all_checks(project_yaml: str, repo_path: str = ".") -> dict[str, PolicyResult]:
     """Run all governance policy checks on a project."""
     results = {
         "repo_hygiene": check_repo_hygiene(repo_path),
         "publication": check_publication_readiness(repo_path),
         "decision_log": check_decision_log(repo_path),
+        "findings_integrity": check_findings_integrity(repo_path),
+        "statistical_rigor": check_statistical_rigor(repo_path),
+        "learning_curves": check_learning_curves(repo_path),
+        "hypothesis_registry": check_hypothesis_registry(repo_path),
+        "provenance": check_provenance(repo_path),
+        "test_coverage": check_test_coverage(repo_path),
     }
 
     # Check all defined phases
