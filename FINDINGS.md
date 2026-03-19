@@ -1,4 +1,4 @@
-# FINDINGS — govML Agent-Native Governance Platform (FP-08)
+# CLAIM: Agent-Consumable Governance via MCP Reduces Project Setup by 83% and Makes the Human/Agent Boundary Explicit
 
 > **Date:** 2026-03-15
 > **Framework:** govML v2.5 (blog-track profile) — meta: govML governs itself
@@ -70,6 +70,27 @@ The policy engine reads `phases[].checks[]` from project.yaml and verifies file 
 | | | Blog voice and narrative |
 
 **6 agent-safe + 5 human-required** [DEMONSTRATED] = clear boundary. Agents handle the mechanical governance; humans handle the judgment.
+
+---
+
+## Negative Results
+
+| Finding | Detail | Why It Matters |
+|---------|--------|----------------|
+| MCP setup time not yet timed | The <5 min projection for MCP-automated setup is extrapolated, not measured | Until timed in production, the 90%+ reduction claim is [PROJECTED] not [DEMONSTRATED]. The 83% reduction (60 min to 10 min) across earlier generations IS measured. |
+| Phase gate checks limited to file existence | Automated checks verify files exist but cannot validate content quality | Gate enforcement catches structural gaps (missing README) but not substance gaps (weak thesis). Human judgment remains required for quality. |
+| No multi-agent orchestration tested | MCP server tested with single Claude Code agent only | Real governance in production may involve multiple agents with conflicting actions. Concurrency and conflict resolution are untested. |
+| YAML policy language is limited | Conditions expressed as file-exists or command-returns-0 | Complex governance rules (e.g., "findings must reference all hypotheses") require custom check functions, not declarative YAML. |
+
+## Content Hooks
+
+| Hook | Format | Target Channel | Tie to Finding |
+|------|--------|---------------|----------------|
+| "I built the governance framework my AI uses to govern itself" | Blog post (1200 words) | Substack + dev.to | Full narrative |
+| "Governance that isn't machine-readable isn't governance" | LinkedIn post (500 words) | LinkedIn | RQ2 YAML policies |
+| "6 agent-safe, 5 human-required: the explicit boundary" | Thread (6 tweets) | X/Twitter | RQ4 boundary |
+| "From 60 minutes to 5: 4 generations of project setup" | LinkedIn carousel | LinkedIn | RQ3 setup time |
+| "The meta-lesson: the framework governs the projects, the projects improve the framework" | Substack essay | Substack | What I Learned |
 
 ---
 

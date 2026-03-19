@@ -44,6 +44,16 @@ The shift from human-read governance to agent-consumed governance changes three 
 | Append formatted ADRs | Write blog voice and narrative |
 | Check publication artifact existence | Decide what's interesting |
 
+## Setup Time: 4 Generations of Automation
+
+![Setup Time Across 4 Generations](images/setup_time.png)
+
+Each generation of automation cuts setup time by 50-90%. The MCP server is the latest step.
+
+## The Agent-Safe Boundary
+
+![Agent vs Human Boundary](images/agent_boundary.png)
+
 ## Testing on Real Projects
 
 I ran `govml_validate_project` against all 7 completed projects:
