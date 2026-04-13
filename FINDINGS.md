@@ -1,3 +1,13 @@
+---
+fp: "FP-17"
+title: "Agent-Consumable Governance via MCP"
+quality_score: 7.0
+last_scored: "2026-03-20"
+status: "COMPLETE"
+audience_side: "of-ai"
+sharing_tier: "1_publish"
+---
+
 # CLAIM: Agent-Consumable Governance via MCP Reduces Project Setup by 83% and Makes the Human/Agent Boundary Explicit
 
 > **Date:** 2026-03-15
